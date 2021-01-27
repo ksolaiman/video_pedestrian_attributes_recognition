@@ -3,6 +3,7 @@ Forked from https://github.com/yuange250/video_pedestrian_attributes_recognition
 ## Changes
 1. Created Validation DataSet from Training Data. Originally they were evaluating on the Test data.
 2. Adding New Sampling Methods for MMIR.
+3. Just running for 3 attributes.
 
 # video_pedestrian_attributes_recognition
   Codes for the paper "A Temporal Attentive Approach for Video-Based Pedestrian Attribute Recognition".
