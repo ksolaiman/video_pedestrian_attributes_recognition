@@ -1,4 +1,4 @@
-Forked from https://github.com/yuange250/MARS-Attribute
+Forked from https://github.com/yuange250/video_pedestrian_attributes_recognition
 
 ## Changes
 1. Created Validation DataSet from Training Data. Originally they were evaluating on the Test data.
