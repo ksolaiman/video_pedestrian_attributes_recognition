@@ -1,4 +1,5 @@
-# The website of our lab sometime got closed for some political reason, the attributes dataset can also be downlowded [here](https://pan.baidu.com/s/1vSwoqM9s1ImKzRZHDlmpWQ), passwd:beda
+Forked from https://github.com/yuange250/MARS-Attribute
+
 # video_pedestrian_attributes_recognition
   Codes for the paper "A Temporal Attentive Approach for Video-Based Pedestrian Attribute Recognition".
   
