@@ -38,6 +38,7 @@ parser.add_argument('--width', type=int, default=112,
 parser.add_argument('--seq-len', type=int, default=6, help="number of images to sample in a tracklet")
 parser.add_argument('--max-traclets-len', type=int, default=250, help="number of parts to sample in a tracklet")
 parser.add_argument('--gpu-devices', default='0, 1', type=str, help='gpu device ids for CUDA_VISIBLE_DEVICES')
+parser.add_argument('--eval_model_root', default='data/models/mars/new_eval/2021-01-27_16-08-05/', type=str, help='saved model root')
 parser.add_argument('--num-instances', type=int, default=4,
                     help="number of instances per identity")
 parser.add_argument('--test-batch', default=1, type=int, help="has to be 1")
@@ -181,7 +182,7 @@ def attr_main():
                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
 
     #queryloader = VideoDataset(dataset.query + dataset.gallery, seq_len=args.seq_len, sample='single' transform=transform_test, attr=True,
-    queryloader = VideoDataset(dataset.query, seq_len=args.seq_len, #args.seq_len, sample='dense'
+    queryloader = VideoDataset(dataset.query + dataset.gallery, seq_len=args.seq_len, #args.seq_len, sample='dense'
                                sample='dense', transform=transform_test, attr=True,
                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
     
@@ -203,7 +204,8 @@ def attr_main():
 
     if args.evaluate:
         print("Evaluate only")
-        model_root = "/data/chenzy/models/mars/2019-02-26_21-02-13"
+        # model_root = "/data/chenzy/models/mars/2019-02-26_21-02-13"
+        model_root = args.eval_model_root
         model_paths = []
         for m in os.listdir(model_root):
             if m.endswith("pth"):
