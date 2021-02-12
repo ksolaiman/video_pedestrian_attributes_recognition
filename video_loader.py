@@ -82,6 +82,7 @@ class VideoDataset(Dataset):
             if num is smaller than seq_len, then replicate items.
             This sampling strategy is used in training phase.
             """
+            np.random.seed(seed=24)
             frame_indices = list(range(num))
             rand_end = max(0, len(frame_indices) - self.seq_len - 1)
             begin_index = random.randint(0, rand_end)
@@ -146,49 +147,97 @@ class VideoDataset(Dataset):
             imgs_array = torch.stack(imgs_list)
             return imgs_array, pid, camid, attributes, img_paths[0]
         
-        elif self.sample == 'dense_mit': # to apply tao's algo on it, just returns the image paths
+        elif self.sample == 'first_img_path': # to apply tao's algo on it, just returns the image paths
             """
-            Sample all frames in a video into a list of clips, each clip contains seq_len frames, batch_size needs to be set to 1.
+            Sample all frames in a video into a list of clips, each clip contains 1 frame.
             This sampling strategy is used in test phase.
             """
-            cur_index=0
-            frame_indices = list(range(num))
-            indices_list=[]
-            while num-cur_index > self.seq_len:
-                indices_list.append(frame_indices[cur_index:cur_index+self.seq_len])
-                cur_index+=self.seq_len
-            last_seq=frame_indices[cur_index:]
-            for index in last_seq:
-                if len(last_seq) >= self.seq_len:
-                    break
-                last_seq.append(index)
-            indices_list.append(last_seq)
-            imgs_list=[]
-            for indices in indices_list:
-                imgs = []
-                for index in indices:
-                    index=int(index)
-                    img_path = img_paths[index]
-                    img = img_path #read_image(img_path)
-                    #if self.transform is not None:
-                    #    img = self.transform(img)
-                    #img = img.unsqueeze(0)
-                    imgs.append(img)
-
-                imgs = torch.cat(imgs, dim=0)
-                #imgs=imgs.permute(1,0,2,3)
-                imgs_list.append(imgs)
-            if len(imgs_list) > self.max_seq_len:
-                sp = int(random.random() * (len(imgs_list) - self.max_seq_len))
-                ep = sp + self.max_seq_len
-                imgs_list = imgs_list[sp:ep]
-            imgs_array = torch.stack(imgs_list)
-            return imgs_array, pid, camid, attributes, img_paths[0]
+            # return imgs_array, pid, camid, attributes, img_paths[0]
+            return pid, camid, attributes, img_paths[0]
         
-        elif self.sample == 'single_image': # for img->video/tracklet and for img->text retrieval
+        elif self.sample == 'random_img_path': # to apply tao's algo on it, just returns the image paths
+            """
+            Sample all frames in a video into a list of clips, each clip contains 1 frame.
+            This sampling strategy is used in test phase.
+            """
+            np.random.seed(seed=24)
+            frame_indices = list(range(num))
+            rand_end = max(0, len(frame_indices) - self.seq_len - 1)
+            img_index = random.randint(0, rand_end)
+            # return imgs_array, pid, camid, attributes, img_paths[0]
+            return pid, camid, attributes, img_paths[img_index]
+        
+        elif self.sample == 'first_img_path': # to apply tao's algo on it, just returns the image paths
+            """
+            Sample all frames in a video into a list of clips, each clip contains 1 frame.
+            This sampling strategy is used in test phase.
+            """
+            img = read_image(img_paths[0])
+            if self.transform is not None:
+                img = self.transform(img)
+            img = img.unsqueeze(0)
+            return img, pid, camid, attributes, img_paths[0]
+            # return pid, camid, attributes, img_paths[0]
+        
+        elif self.sample == 'random_img': # to apply tao's algo on it, just returns the image paths
+            """
+            Sample all frames in a video into a list of clips, each clip contains 1 frame.
+            This sampling strategy is used in test phase.
+            """
+            np.random.seed(seed=24)
+            frame_indices = list(range(num))
+            rand_end = max(0, len(frame_indices) - self.seq_len - 1)
+            img_index = random.randint(0, rand_end)
+            img = read_image(img_paths[img_index])
+            if self.transform is not None:
+                img = self.transform(img)
+            img = img.unsqueeze(0)
+            return img, pid, camid, attributes, img_paths[img_index]
+            # return pid, camid, attributes, img_paths[img_index]
+        
+        elif self.sample == 'mmir_img': # for img->video/tracklet and for img->text retrieval
             # basically saying to sample 1 frame for each of tracklet id in dataset (like training), so seq_len = 1
             # just call this function with only the ids dataset that you want, and seq_len =1 with random sampling
-            print("single")
+            
+            """
+            Just return the first image of each tracklet
+            The group of images are of one person from one camera
+            So we are saying image of a person from a certain camera is showing
+            """
+            img_path = img_paths[0]
+            # reading the image is not necessary for SQL mmir, but for other mmir might be 
+            img = read_image(img_path)
+            if self.transform is not None:
+                img = self.transform(img)
+                img = img.unsqueeze(0)
+                
+            return imgs_array, pid, camid, attributes
+            ###
+            
+            frame_indices = list(range(num))
+            rand_end = max(0, len(frame_indices) - self.seq_len - 1)
+            begin_index = random.randint(0, rand_end)
+            end_index = min(begin_index + self.seq_len, len(frame_indices))
+
+            indices = frame_indices[begin_index:end_index]
+
+            for index in indices:
+                if len(indices) >= self.seq_len:
+                    break
+                indices.append(index)
+            indices=np.array(indices)
+            imgs = []
+            for index in indices:
+                index=int(index)
+                img_path = img_paths[index]
+                img = read_image(img_path)
+                if self.transform is not None:
+                    img = self.transform(img)
+                img = img.unsqueeze(0)
+                imgs.append(img)
+            imgs = torch.cat(imgs, dim=0)
+            #imgs=imgs.permute(1,0,2,3)
+            return imgs, pid, camid, attributes,
 
         else:
             raise KeyError("Unknown sample method: {}. Expected one of {}".format(self.sample, self.sample_methods))
