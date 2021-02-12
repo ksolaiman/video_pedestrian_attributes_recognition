@@ -114,8 +114,6 @@ def attr_main():
     print("Initializing dataset {}".format(args.dataset))
 
     dataset = data_manager.init_dataset(name=args.dataset, min_seq_len=args.seq_len, attr=True)
-#     print(dataset.num_mmir_img_query_pids)
-#     print(dataset.num_mmir_video_query_pids)
     
     args.attr_lens = dataset.attr_lens
     args.columns = dataset.columns
@@ -159,15 +157,20 @@ def attr_main():
 
     pin_memory = True if use_gpu else False
     
-#     mmirImgQueryLoader = VideoDataset(dataset.mmir_img_query, seq_len=1,
-#                                sample='random', transform=transform_test, attr=True,
-#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+    # For SQL mmir, just first_img_path/ random_img_path sampling works
+    # For other mmir, call first_img/ random_img sampling
+    mmirImgQueryLoader = VideoDataset(dataset.mmir_img_query, seq_len=1,
+                               sample='mmir', transform=transform_test, attr=True,
+                     attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+        
     
-#     # sampling the whole video has no impact in mmir, as we cannot take avg. of the separated lists attributes "accuracy"
-#     # we need frames of whose attributes would be one single one, and then we search in img and text that attributes
-#     mmirVideoQueryLoader = VideoDataset(dataset.mmir_video_query, seq_len=args.seq_len,
-#                                sample='random', transform=transform_test, attr=True,
-#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+    # For SQL mmir, just first_img_path sampling works, as not even using the image_array, using just the attributes
+    # For other mmir, call random sampling
+    # sampling the whole video has no impact in mmir, as we cannot take avg. of the separated lists attributes "accuracy"
+    # we need frames of whose attributes would be one single one, and then we search in img and text that attributes
+    mmirVideoQueryLoader = VideoDataset(dataset.mmir_video_query, seq_len=args.seq_len,
+                               sample='random', transform=transform_test, attr=True,
+                     attr_loss=args.attr_loss, attr_lens=args.attr_lens)
 
     trainloader = DataLoader(
         VideoDataset(dataset.train, seq_len=args.seq_len, sample='random', transform=transform_train, attr=True,
@@ -201,6 +204,9 @@ def attr_main():
         criterion = nn.CrossEntropyLoss()
     elif args.attr_loss == "mse":
         criterion = nn.MSELoss()
+        
+    attr_test_MIT(model, criterion, queryloader, use_gpu)
+    input()
 
     if args.evaluate:
         print("Evaluate only")
@@ -212,8 +218,10 @@ def attr_main():
                 model_paths.append(m)
 
         model_paths = sorted(model_paths, key=lambda a:float(a.split("_")[1]), reverse=True)
+        #print(model_paths)
+        #input()
         # model_paths = ['rank1_2.8755379380596713_checkpoint_ep500.pth']
-        for m in model_paths:
+        for m in model_paths[0:1]:
             model_path = os.path.join(model_root, m)
             print(model_path)
 
@@ -326,7 +334,7 @@ def attr_test(model, criterion, testloader, use_gpu):
             if len(attrs) >= len(args.attr_lens[0]) + len(args.attr_lens[1]):
                 num += 1
                 outputs = model(imgs)
-                outputs = [torch.mean(out, 0).view(1, -1) for out in outputs]
+                outputs = [torch.mean(out, 0).view(1, -1) for out in outputs] # this calculates the mean of all attributes value
                 loss = criterion(outputs[0], attrs[0])
                 for i in range(1, len(outputs)):
                     loss += criterion(outputs[i], attrs[i])
@@ -371,6 +379,77 @@ def attr_test(model, criterion, testloader, use_gpu):
         print("avr acc id-related", origin_avr_without_motion_angle)
         print("avr acc and avr acc id-related should be same now")
         #print("f1_score_macro id-related", f1_scores_macro_without_motion_angle)
+
+        print("avr", avr)
+        return origin_avr + f1_scores_macro
+    
+def attr_test_MIT(model, criterion, testloader, use_gpu):
+    columns = args.columns
+    # accs = np.array([0 for _ in range(len(args.attr_lens))])
+    accs = np.array([0 for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))])
+    num = 0
+    y_preds = [[] for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))]
+    y_trues = [[] for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))]
+
+
+    with torch.no_grad():
+        model.eval()
+        losses = AverageMeter()
+        batch_sz = 0
+        for batch_idx, (pids, _, attrs, img_path) in enumerate(tqdm(testloader)):
+            batch_sz += 1
+            print(img_path)
+            '''
+            if use_gpu:
+                if args.attr_loss == "mse":
+                    attrs = [a.cuda() for a in attrs]
+                else:
+                    attrs = [a.view(-1).cuda() for a in attrs]
+
+            if len(attrs) >= len(args.attr_lens[0]) + len(args.attr_lens[1]):
+                num += 1
+                #outputs = model(imgs)
+                #outputs = [torch.mean(out, 0).view(1, -1) for out in outputs] # this calculates the mean of all groups
+                outputs = darknet_ng(img_path) # just doing attr. for first image
+                loss = criterion(outputs[0], attrs[0])
+                for i in range(1, len(outputs)-1): # discard last one
+                    loss += criterion(outputs[i], attrs[i])
+                # losses.update(loss.item(), pids.size(0))
+                losses.update(loss.item(), 1)
+                for i in range(len(outputs)-1):
+                    outs = outputs[i]#.cpu().numpy()
+                    # outs = torch.mean(outs, 0)
+                    if args.attr_loss == "mse":
+                        accs[i] += np.sum(np.argmax(outs, 1) == np.argmax(attrs[i].cpu().numpy(), 1))
+                    elif args.attr_loss == "cropy":
+                        y_preds[i].append(np.argmax(outs, 1)) # no need to call max
+                        y_trues[i].append(attrs[i].cpu().numpy())
+                        accs[i] += np.sum(np.argmax(outs, 1) == attrs[i].cpu().numpy()) # no need to call max
+             '''
+        
+        print(batch_sz)
+        print("Batch {}/{}\t Loss {:.6f} ({:.6f})".format(batch_idx + 1, len(testloader), losses.val, losses.avg))
+        accs = accs / num
+        avr = np.mean(accs)
+        f1_scores_macros = [f1_score(y_pred=y_preds[i], y_true=y_trues[i], average='macro') for i in 
+                            list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1]) ) ) ]
+        colum_str = "|".join(["%15s" % c for c in columns])
+        acc_str = "|".join(["%15f" % acc for acc in accs])
+        f1_scores_macros_str = "|".join(["%15f" % f for f in f1_scores_macros])
+        print(colum_str)
+        print(acc_str)
+        print(f1_scores_macros_str)
+        origin_avr = np.mean(accs[list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1])))])
+        origin_avr_without_motion_angle = np.mean(accs[len(args.attr_lens[0]):])
+        f1_scores_macro = np.mean(f1_scores_macros)
+        f1_scores_micro = np.mean([f1_score(y_pred=y_preds[i], y_true=y_trues[i], average='micro') for i in list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1])))])
+
+        print("avr acc", origin_avr)
+        print("f1_score_macro", f1_scores_macro)
+        print("f1_score_micro", f1_scores_micro)
+
+        print("avr acc id-related", origin_avr_without_motion_angle)
+        print("avr acc and avr acc id-related should be same now")
 
         print("avr", avr)
         return origin_avr + f1_scores_macro
