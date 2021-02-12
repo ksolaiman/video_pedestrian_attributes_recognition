@@ -102,19 +102,19 @@ class Mars(object):
         gallery, num_gallery_tracklets, num_gallery_pids, num_gallery_imgs = \
           self._process_data(test_names, track_gallery, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len, attr=attr)
         
-#         np.random.seed(seed=24)
-#         mmir_img_query_IDX = np.random.choice(query_IDX, num_mmir_query_imgs, replace=False)
-#         mmir_video_query_IDX = np.random.choice(np.setdiff1d(query_IDX, mmir_img_query_IDX), num_mmir_query_videos, replace=False)
-#         track_mmir_img_query = track_test[mmir_img_query_IDX,:]
-#         track_mmir_video_query = track_test[mmir_video_query_IDX,:]
-#         mmir_img_query, num_mmir_img_query_tracklets, num_mmir_img_query_pids, num_mmir_img_query_imgs = \
-#           self._process_data(test_names, track_mmir_img_query, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len, attr=attr)
-#         mmir_video_query, num_mmir_video_query_tracklets, num_mmir_video_query_pids, num_mmir_video_query_imgs = \
-#           self._process_data(test_names, track_mmir_video_query, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len, attr=attr)
-#         self.mmir_img_query = mmir_img_query
-#         self.mmir_video_query = mmir_video_query
-#         self.num_mmir_img_query_pids = num_mmir_img_query_pids
-#         self.num_mmir_video_query_pids = num_mmir_video_query_pids
+        np.random.seed(seed=24)
+        mmir_img_query_IDX = np.random.choice(query_IDX, num_mmir_query_imgs, replace=False)
+        mmir_video_query_IDX = np.random.choice(np.setdiff1d(query_IDX, mmir_img_query_IDX), num_mmir_query_videos, replace=False)
+        track_mmir_img_query = track_test[mmir_img_query_IDX,:]
+        track_mmir_video_query = track_test[mmir_video_query_IDX,:]
+        mmir_img_query, num_mmir_img_query_tracklets, num_mmir_img_query_pids, num_mmir_img_query_imgs = \
+          self._process_data(test_names, track_mmir_img_query, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len, attr=attr)
+        mmir_video_query, num_mmir_video_query_tracklets, num_mmir_video_query_pids, num_mmir_video_query_imgs = \
+          self._process_data(test_names, track_mmir_video_query, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len, attr=attr)
+        self.mmir_img_query = mmir_img_query
+        self.mmir_video_query = mmir_video_query
+        self.num_mmir_img_query_pids = num_mmir_img_query_pids
+        self.num_mmir_video_query_pids = num_mmir_video_query_pids
 
         num_imgs_per_tracklet = num_train_imgs + num_query_imgs + num_gallery_imgs
         min_num = np.min(num_imgs_per_tracklet)
@@ -147,6 +147,9 @@ class Mars(object):
         self.num_query_pids = num_query_pids
         self.num_gallery_pids = num_gallery_pids
         self.num_val_pids = num_val_pids
+        
+        print(num_mmir_img_query_pids, num_mmir_img_query_tracklets)
+        print(num_mmir_video_query_pids, num_mmir_video_query_tracklets)
 
     def get_mean_and_var(self):
         imgs = []
@@ -432,5 +435,5 @@ if __name__ == '__main__':
     # test
     #dataset = Market1501()
     dataset = Mars()
-    dataset._init()
+    dataset.__init__()
     pass
