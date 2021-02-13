@@ -82,8 +82,8 @@ class VideoDataset(Dataset):
             if num is smaller than seq_len, then replicate items.
             This sampling strategy is used in training phase.
             """
-            np.random.seed(seed=24)
             frame_indices = list(range(num))
+            random.seed(24)
             rand_end = max(0, len(frame_indices) - self.seq_len - 1)
             begin_index = random.randint(0, rand_end)
             end_index = min(begin_index + self.seq_len, len(frame_indices))
@@ -153,19 +153,19 @@ class VideoDataset(Dataset):
             This sampling strategy is used in test phase.
             """
             # return imgs_array, pid, camid, attributes, img_paths[0]
-            return pid, camid, attributes, img_paths[0]
+            return pid, camid, attrs, img_paths[0]
         
         elif self.sample == 'random_img_path': # to apply tao's algo on it, just returns the image paths
             """
             Sample all frames in a video into a list of clips, each clip contains 1 frame.
             This sampling strategy is used in test phase.
             """
-            np.random.seed(seed=24)
             frame_indices = list(range(num))
             rand_end = max(0, len(frame_indices) - self.seq_len - 1)
+            random.seed(24)
             img_index = random.randint(0, rand_end)
             # return imgs_array, pid, camid, attributes, img_paths[0]
-            return pid, camid, attributes, img_paths[img_index]
+            return pid, camid, attrs, img_paths[img_index] # attributes is a tensor array
         
         elif self.sample == 'first_img_path': # to apply tao's algo on it, just returns the image paths
             """
@@ -176,7 +176,7 @@ class VideoDataset(Dataset):
             if self.transform is not None:
                 img = self.transform(img)
             img = img.unsqueeze(0)
-            return img, pid, camid, attributes, img_paths[0]
+            return img, pid, camid, attrs, img_paths[0]
             # return pid, camid, attributes, img_paths[0]
         
         elif self.sample == 'random_img': # to apply tao's algo on it, just returns the image paths
@@ -184,38 +184,25 @@ class VideoDataset(Dataset):
             Sample all frames in a video into a list of clips, each clip contains 1 frame.
             This sampling strategy is used in test phase.
             """
-            np.random.seed(seed=24)
             frame_indices = list(range(num))
             rand_end = max(0, len(frame_indices) - self.seq_len - 1)
+            random.seed(24)
             img_index = random.randint(0, rand_end)
             img = read_image(img_paths[img_index])
             if self.transform is not None:
                 img = self.transform(img)
             img = img.unsqueeze(0)
-            return img, pid, camid, attributes, img_paths[img_index]
+            return img, pid, camid, attrs, img_paths[img_index]
             # return pid, camid, attributes, img_paths[img_index]
         
-        elif self.sample == 'mmir_img': # for img->video/tracklet and for img->text retrieval
-            # basically saying to sample 1 frame for each of tracklet id in dataset (like training), so seq_len = 1
-            # just call this function with only the ids dataset that you want, and seq_len =1 with random sampling
-            
+        elif self.sample == "random_video": # for img->video/tracklet and for img->text retrieval
             """
-            Just return the first image of each tracklet
-            The group of images are of one person from one camera
-            So we are saying image of a person from a certain camera is showing
+            Sample all frames in a video into a list of clips, each clip contains 1 frame.
+            This sampling strategy is used in test phase.
             """
-            img_path = img_paths[0]
-            # reading the image is not necessary for SQL mmir, but for other mmir might be 
-            img = read_image(img_path)
-            if self.transform is not None:
-                img = self.transform(img)
-                img = img.unsqueeze(0)
-                
-            return imgs_array, pid, camid, attributes
-            ###
-            
             frame_indices = list(range(num))
             rand_end = max(0, len(frame_indices) - self.seq_len - 1)
+            random.seed(24)
             begin_index = random.randint(0, rand_end)
             end_index = min(begin_index + self.seq_len, len(frame_indices))
 
@@ -230,14 +217,14 @@ class VideoDataset(Dataset):
             for index in indices:
                 index=int(index)
                 img_path = img_paths[index]
-                img = read_image(img_path)
-                if self.transform is not None:
-                    img = self.transform(img)
-                img = img.unsqueeze(0)
-                imgs.append(img)
-            imgs = torch.cat(imgs, dim=0)
-            #imgs=imgs.permute(1,0,2,3)
-            return imgs, pid, camid, attributes,
+                #img = read_image(img_path)
+                #if self.transform is not None:
+                #    img = self.transform(img)
+                #img = img.unsqueeze(0)
+                imgs.append(img_path)
+            # imgs = torch.cat(imgs, dim=0)
+            return pid, camid, attrs, imgs
+            # return pid, camid, attributes, img_paths[img_index]
 
         else:
             raise KeyError("Unknown sample method: {}. Expected one of {}".format(self.sample, self.sample_methods))
