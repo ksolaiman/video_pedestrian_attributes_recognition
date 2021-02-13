@@ -159,18 +159,80 @@ def attr_main():
     
     # For SQL mmir, just first_img_path/ random_img_path sampling works
     # For other mmir, call first_img/ random_img sampling
-    mmirImgQueryLoader = VideoDataset(dataset.mmir_img_query, seq_len=1,
-                               sample='mmir', transform=transform_test, attr=True,
+    mmirImgQueryLoader = VideoDataset(dataset.mmir_img_query, seq_len=1, # dataset.mmir_img_query[0:2]
+                               sample='random_img_path', transform=transform_test, attr=True,
                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
-        
+    import psycopg2
+    # set-up a postgres connection
+    conn = psycopg2.connect(database='ng', user='ngadmin',password='stonebra',
+                                host='146.148.89.5', port=5432)
+    dbcur = conn.cursor()
+    print("connection successful")
+    for batch_idx, (pids, camids, attrs, img_path) in enumerate(tqdm(mmirImgQueryLoader)):
+        print(pids)
+        images = list()
+        images.append(img_path)
+        # just save the img in img_path
+        sql = dbcur.mogrify("""
+            INSERT INTO mmir_ground (
+                mgid,
+                ctype,
+                camid,
+                pid,
+                ubc,
+                lbc,
+                gender,
+                imagepaths 
+            ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("image", 
+                                                                      str(pids), 
+                                                                         str(camids), 
+                                                                         str(attrs[0]), 
+                                                                         str(attrs[1]), 
+                                                                         str(attrs[2]), images)
+        )
+    
+        print(sql)
+        dbcur.execute(sql)
+        conn.commit()
+
+    print(dataset.mmir_video_query[0]) # if this works, for sdml or other mmir training will just take some part of train for img, some for video
     
     # For SQL mmir, just first_img_path sampling works, as not even using the image_array, using just the attributes
     # For other mmir, call random sampling
     # sampling the whole video has no impact in mmir, as we cannot take avg. of the separated lists attributes "accuracy"
     # we need frames of whose attributes would be one single one, and then we search in img and text that attributes
-    mmirVideoQueryLoader = VideoDataset(dataset.mmir_video_query, seq_len=args.seq_len,
-                               sample='random', transform=transform_test, attr=True,
+    mmirVideoQueryLoader = VideoDataset(dataset.mmir_video_query, seq_len=10, # 100 * 10 = 1000 frames as image
+                               sample='random_video', transform=transform_test, attr=True,
                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+    
+    for batch_idx, (pids, camids, attrs, img_paths) in enumerate(tqdm(mmirVideoQueryLoader)):
+        print(pids)
+        sql = dbcur.mogrify("""
+            INSERT INTO mmir_ground (
+                mgid,
+                ctype,
+                camid,
+                pid,
+                ubc,
+                lbc,
+                gender,
+                imagepaths
+            ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("video", 
+                                                                      str(pids), 
+                                                                         str(camids), 
+                                                                         str(attrs[0]), 
+                                                                         str(attrs[1]), 
+                                                                         str(attrs[2]), img_paths)
+        )
+    
+        dbcur.execute(sql)
+        conn.commit()
+        
+    conn.close()
+    
+    # if i want to add more mmir image, video samples, 
+    # 1. in line 116, pass num_mmir_query_imgs=1000, num_mmir_query_videos=100
+    # 2. just uncomment the SQL query code, the first 1000 & 100 would be same, as seed is set, the later ones will be added in postgres
 
     trainloader = DataLoader(
         VideoDataset(dataset.train, seq_len=args.seq_len, sample='random', transform=transform_train, attr=True,
