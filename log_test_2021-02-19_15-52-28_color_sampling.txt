@@ -1,0 +1,36 @@
+data/models/mars/color_sampling/2021-02-19_15-52-39
+==========
+Args:Namespace(arch='attr_resnet50tp', attr_lens=[[5, 6, 2, 2, 2, 2, 2, 2, 2], [9, 10, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]], attr_loss='cropy', colorsampling=True, dataset='mars', eval_model_root='data/models/mars/new_eval/2021-01-27_16-08-05/', eval_step=5, evaluate=False, gamma=0.3, gpu_devices='6', height=224, htri_only=False, lr=0.0003, margin=0.3, max_epoch=1000, max_traclets_len=250, model_type='ta', num_instances=4, pool='avg', print_freq=80, sample_margin=4, save_dir='data/models/mars/color_sampling/2021-02-19_15-52-39', seed=1, seq_len=6, stalestep=10, start_epoch=0, stepsize=100, test_batch=1, train_batch=32, use_cpu=False, weight_decay=0.0005, width=112, workers=4)
+==========
+Currently using GPU 6
+Initializing dataset mars
+625
+(1734, 4)
+(6564, 4)
+=> MARS loaded
+Dataset statistics:
+  ------------------------------
+  subset   | # ids | # tracklets
+  ------------------------------
+  train    |   505 |     6563
+  valid    |   120 |     1734
+  query    |   626 |     1978
+  gallery  |   622 |     9328
+  ------------------------------
+  total    |  1131 |    17869
+  number of images per tracklet: 6 ~ 920, average 59.9
+  ------------------------------
+Initializing model: attr_resnet50tp
+Model size: 33.51561M
+Batch 11306/11306	 Loss 0.000000 (0.000000)
+8058
+[0.44651278 0.4525937 ]
+        upcolor|      downcolor|         gender
+       0.446513|       0.452594
+       0.383119|       0.158816
+avr acc 0.44955323901712585
+f1_score_macro 0.27096762208655156
+f1_score_micro 0.44955323901712585
+avr acc id-related 0.44955323901712585
+avr acc and avr acc id-related should be same now
+avr 0.44955323901712585
