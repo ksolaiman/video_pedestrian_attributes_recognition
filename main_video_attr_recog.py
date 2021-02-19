@@ -80,6 +80,7 @@ parser.add_argument('--htri-only', action='store_true', default=False,
 parser.add_argument('--print-freq', type=int, default=80, help="print frequency")
 parser.add_argument('--seed', type=int, default=1, help="manual seed")
 parser.add_argument('--evaluate', default=False, action='store_true', help="evaluation only")
+parser.add_argument('--colorsampling', default=False, action='store_true', help="color sampling evaluation only")
 parser.add_argument('--eval-step', type=int, default=2,
                     help="run evaluation for every N epochs (set to -1 to test after training)")
 parser.add_argument('--save-dir', type=str, default='/data/chenzy/models/mars')
@@ -159,76 +160,77 @@ def attr_main():
     
     # For SQL mmir, just first_img_path/ random_img_path sampling works
     # For other mmir, call first_img/ random_img sampling
-    mmirImgQueryLoader = VideoDataset(dataset.mmir_img_query, seq_len=1, # dataset.mmir_img_query[0:2]
-                               sample='random_img_path', transform=transform_test, attr=True,
-                     attr_loss=args.attr_loss, attr_lens=args.attr_lens)
-    import psycopg2
-    # set-up a postgres connection
-    conn = psycopg2.connect(database='ng', user='ngadmin',password='stonebra',
-                                host='146.148.89.5', port=5432)
-    dbcur = conn.cursor()
-    print("connection successful")
-    for batch_idx, (pids, camids, attrs, img_path) in enumerate(tqdm(mmirImgQueryLoader)):
-        print(pids)
-        images = list()
-        images.append(img_path)
-        # just save the img in img_path
-        sql = dbcur.mogrify("""
-            INSERT INTO mmir_ground (
-                mgid,
-                ctype,
-                camid,
-                pid,
-                ubc,
-                lbc,
-                gender,
-                imagepaths 
-            ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("image", 
-                                                                      str(pids), 
-                                                                         str(camids), 
-                                                                         str(attrs[0]), 
-                                                                         str(attrs[1]), 
-                                                                         str(attrs[2]), images)
-        )
-    
-        print(sql)
-        dbcur.execute(sql)
-        conn.commit()
+#     mmirImgQueryLoader = VideoDataset(dataset.mmir_img_query, seq_len=1, # dataset.mmir_img_query[0:2]
+#                                sample='random_img_path', transform=transform_test, attr=True,
+#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
 
-    print(dataset.mmir_video_query[0]) # if this works, for sdml or other mmir training will just take some part of train for img, some for video
+#     import psycopg2
+#     # set-up a postgres connection
+#     conn = psycopg2.connect(database='ng', user='ngadmin',password='stonebra',
+#                                 host='146.148.89.5', port=5432)
+#     dbcur = conn.cursor()
+#     print("connection successful")
+#     for batch_idx, (pids, camids, attrs, img_path) in enumerate(tqdm(mmirImgQueryLoader)):
+#         print(pids)
+#         images = list()
+#         images.append(img_path)
+#         # just save the img in img_path
+#         sql = dbcur.mogrify("""
+#             INSERT INTO mmir_ground (
+#                 mgid,
+#                 ctype,
+#                 camid,
+#                 pid,
+#                 ubc,
+#                 lbc,
+#                 gender,
+#                 imagepaths 
+#             ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("image", 
+#                                                                       str(pids), 
+#                                                                          str(camids), 
+#                                                                          str(attrs[0]), 
+#                                                                          str(attrs[1]), 
+#                                                                          str(attrs[2]), images)
+#         )
     
-    # For SQL mmir, just first_img_path sampling works, as not even using the image_array, using just the attributes
-    # For other mmir, call random sampling
-    # sampling the whole video has no impact in mmir, as we cannot take avg. of the separated lists attributes "accuracy"
-    # we need frames of whose attributes would be one single one, and then we search in img and text that attributes
-    mmirVideoQueryLoader = VideoDataset(dataset.mmir_video_query, seq_len=10, # 100 * 10 = 1000 frames as image
-                               sample='random_video', transform=transform_test, attr=True,
-                     attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+#         print(sql)
+#         dbcur.execute(sql)
+#         conn.commit()
+
+#     print(dataset.mmir_video_query[0]) # if this works, for sdml or other mmir training will just take some part of train for img, some for video
     
-    for batch_idx, (pids, camids, attrs, img_paths) in enumerate(tqdm(mmirVideoQueryLoader)):
-        print(pids)
-        sql = dbcur.mogrify("""
-            INSERT INTO mmir_ground (
-                mgid,
-                ctype,
-                camid,
-                pid,
-                ubc,
-                lbc,
-                gender,
-                imagepaths
-            ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("video", 
-                                                                      str(pids), 
-                                                                         str(camids), 
-                                                                         str(attrs[0]), 
-                                                                         str(attrs[1]), 
-                                                                         str(attrs[2]), img_paths)
-        )
+#     # For SQL mmir, just first_img_path sampling works, as not even using the image_array, using just the attributes
+#     # For other mmir, call random sampling
+#     # sampling the whole video has no impact in mmir, as we cannot take avg. of the separated lists attributes "accuracy"
+#     # we need frames of whose attributes would be one single one, and then we search in img and text that attributes
+#     mmirVideoQueryLoader = VideoDataset(dataset.mmir_video_query, seq_len=10, # 100 * 10 = 1000 frames as image
+#                                sample='random_video', transform=transform_test, attr=True,
+#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
     
-        dbcur.execute(sql)
-        conn.commit()
+#     for batch_idx, (pids, camids, attrs, img_paths) in enumerate(tqdm(mmirVideoQueryLoader)):
+#         print(pids)
+#         sql = dbcur.mogrify("""
+#             INSERT INTO mmir_ground (
+#                 mgid,
+#                 ctype,
+#                 camid,
+#                 pid,
+#                 ubc,
+#                 lbc,
+#                 gender,
+#                 imagepaths
+#             ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("video", 
+#                                                                       str(pids), 
+#                                                                          str(camids), 
+#                                                                          str(attrs[0]), 
+#                                                                          str(attrs[1]), 
+#                                                                          str(attrs[2]), img_paths)
+#         )
+    
+#         dbcur.execute(sql)
+#         conn.commit()
         
-    conn.close()
+#     conn.close()
     
     # if i want to add more mmir image, video samples, 
     # 1. in line 116, pass num_mmir_query_imgs=1000, num_mmir_query_videos=100
@@ -251,6 +253,10 @@ def attr_main():
                                sample='dense', transform=transform_test, attr=True,
                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
     
+    queryLoaderMIT = VideoDataset(dataset.query + dataset.gallery, seq_len=1,
+                               sample='random_img_path', transform=transform_test, attr=True,
+                     attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+    
 
     start_epoch = args.start_epoch
 
@@ -267,8 +273,9 @@ def attr_main():
     elif args.attr_loss == "mse":
         criterion = nn.MSELoss()
         
-    attr_test_MIT(model, criterion, queryloader, use_gpu)
-    input()
+    if args.colorsampling:
+        attr_test_MIT(model, criterion, queryLoaderMIT, use_gpu)
+        return
 
     if args.evaluate:
         print("Evaluate only")
@@ -448,63 +455,58 @@ def attr_test(model, criterion, testloader, use_gpu):
 def attr_test_MIT(model, criterion, testloader, use_gpu):
     columns = args.columns
     # accs = np.array([0 for _ in range(len(args.attr_lens))])
-    accs = np.array([0 for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))])
+    accs = np.array([0.0 for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1])-1)])
     num = 0
-    y_preds = [[] for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))]
-    y_trues = [[] for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))]
+    y_preds = [[] for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1])-1)]
+    y_trues = [[] for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1])-1)]
 
 
     with torch.no_grad():
         model.eval()
         losses = AverageMeter()
-        batch_sz = 0
-        for batch_idx, (pids, _, attrs, img_path) in enumerate(tqdm(testloader)):
-            batch_sz += 1
-            print(img_path)
-            '''
-            if use_gpu:
-                if args.attr_loss == "mse":
-                    attrs = [a.cuda() for a in attrs]
-                else:
-                    attrs = [a.view(-1).cuda() for a in attrs]
+#         img_file = open("test_frames.txt", "a")
+#         for batch_idx, (pid, camid, attrs, img) in enumerate(tqdm(testloader)):
+#             img_file.write("/homes/ksolaima/scratch1/yuange250_video_pedestrian_attributes_recognition-master"+img[1:]+"\n")
+#         img_file.close()
 
-            if len(attrs) >= len(args.attr_lens[0]) + len(args.attr_lens[1]):
+        output_color_file = open("darknet_ng-master/color_sampling_outputs.txt", "r")
+        zero_attrs = 0 
+        for batch_idx, (pid, camid, attrs, img) in enumerate(tqdm(testloader)):
+        # for line in output_color_file: # this is ordered by the batch input files, but still if you want to check, check
+            imgname, ubc, lbc = output_color_file.readline().rstrip().split("\t") 
+            ubc = int(ubc)
+            lbc = int(lbc)
+            original_file = img.split("/")[-1][:-4]
+            # outs = [ubc, lbc]
+            if len(attrs) == 0:
+                zero_attrs += 1
+            if len(attrs) >= len(args.attr_lens[0]) + len(args.attr_lens[1]) - 1 and imgname == original_file:
+                # len(attrs) >= len(args.attr_lens[0]) + len(args.attr_lens[1]) - 1 prevents from reading pid 0s
                 num += 1
-                #outputs = model(imgs)
-                #outputs = [torch.mean(out, 0).view(1, -1) for out in outputs] # this calculates the mean of all groups
-                outputs = darknet_ng(img_path) # just doing attr. for first image
-                loss = criterion(outputs[0], attrs[0])
-                for i in range(1, len(outputs)-1): # discard last one
-                    loss += criterion(outputs[i], attrs[i])
-                # losses.update(loss.item(), pids.size(0))
-                losses.update(loss.item(), 1)
-                for i in range(len(outputs)-1):
-                    outs = outputs[i]#.cpu().numpy()
-                    # outs = torch.mean(outs, 0)
-                    if args.attr_loss == "mse":
-                        accs[i] += np.sum(np.argmax(outs, 1) == np.argmax(attrs[i].cpu().numpy(), 1))
-                    elif args.attr_loss == "cropy":
-                        y_preds[i].append(np.argmax(outs, 1)) # no need to call max
-                        y_trues[i].append(attrs[i].cpu().numpy())
-                        accs[i] += np.sum(np.argmax(outs, 1) == attrs[i].cpu().numpy()) # no need to call max
-             '''
-        
-        print(batch_sz)
+                y_preds[0].append(ubc) 
+                y_trues[0].append(attrs[0])
+                accs[0] += (ubc == attrs[0])
+                y_preds[1].append(lbc) 
+                y_trues[1].append(attrs[1])
+                accs[1] += (lbc == attrs[1])
+            
         print("Batch {}/{}\t Loss {:.6f} ({:.6f})".format(batch_idx + 1, len(testloader), losses.val, losses.avg))
+        print(num)
         accs = accs / num
         avr = np.mean(accs)
+        print(accs)
         f1_scores_macros = [f1_score(y_pred=y_preds[i], y_true=y_trues[i], average='macro') for i in 
-                            list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1]) ) ) ]
+                            list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1]) - 1 ) ) ]
         colum_str = "|".join(["%15s" % c for c in columns])
         acc_str = "|".join(["%15f" % acc for acc in accs])
         f1_scores_macros_str = "|".join(["%15f" % f for f in f1_scores_macros])
         print(colum_str)
         print(acc_str)
         print(f1_scores_macros_str)
-        origin_avr = np.mean(accs[list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1])))])
+        origin_avr = np.mean(accs[list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1]) - 1 ))])
         origin_avr_without_motion_angle = np.mean(accs[len(args.attr_lens[0]):])
         f1_scores_macro = np.mean(f1_scores_macros)
-        f1_scores_micro = np.mean([f1_score(y_pred=y_preds[i], y_true=y_trues[i], average='micro') for i in list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1])))])
+        f1_scores_micro = np.mean([f1_score(y_pred=y_preds[i], y_true=y_trues[i], average='micro') for i in list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1]) - 1))])
 
         print("avr acc", origin_avr)
         print("f1_score_macro", f1_scores_macro)
