@@ -179,8 +179,8 @@ def attr_main():
 #             INSERT INTO mmir_ground (
 #                 mgid,
 #                 ctype,
-#                 camid,
 #                 pid,
+#                 camid,
 #                 ubc,
 #                 lbc,
 #                 gender,
@@ -213,8 +213,8 @@ def attr_main():
 #             INSERT INTO mmir_ground (
 #                 mgid,
 #                 ctype,
-#                 camid,
 #                 pid,
+#                 camid,
 #                 ubc,
 #                 lbc,
 #                 gender,
@@ -253,9 +253,9 @@ def attr_main():
                                sample='dense', transform=transform_test, attr=True,
                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
     
-    queryLoaderMIT = VideoDataset(dataset.query + dataset.gallery, seq_len=1,
-                               sample='random_img_path', transform=transform_test, attr=True,
-                     attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+#     queryLoaderMIT = VideoDataset(dataset.query + dataset.gallery, seq_len=1,
+#                                sample='random_img_path', transform=transform_test, attr=True,
+#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
     
 
     start_epoch = args.start_epoch
@@ -495,6 +495,8 @@ def attr_test_MIT(model, criterion, testloader, use_gpu):
         accs = accs / num
         avr = np.mean(accs)
         print(accs)
+        # /homes/ksolaima/.local/lib/python2.7/site-packages/sklearn/metrics/classification.py:1145: UndefinedMetricWarning: F-score is ill-defined and being set to 0.0 in labels with no true samples.
+        # GOt this warning because some class labels/colors have no predictions, such as complex, tao's model gives 0 samples as complex, for those it is set to 0, and it is right, if he cannot comprehend complex it sucks
         f1_scores_macros = [f1_score(y_pred=y_preds[i], y_true=y_trues[i], average='macro') for i in 
                             list(range(len(args.attr_lens[0]), len(args.attr_lens[0]) + len(args.attr_lens[1]) - 1 ) ) ]
         colum_str = "|".join(["%15s" % c for c in columns])
