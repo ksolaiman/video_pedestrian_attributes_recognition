@@ -1,0 +1,24 @@
+python main_video_attr_recog.py --save-dir="data/models/mars/new_eval" --gpu-devices=6 --arch=attr_resnet50tp --model_type="ta" --stalestep=10 --eval-step=5 --train-batch=32 --evaluate=True
+succesful run - log_train_2021-01-24_22-33-32.txt
+test - log_test_2021-01-28_13-45-51.txt
+data/models/mars/new_eval/2021-01-27_16-08-05/avr_1.509988639093915_checkpoint_ep140.pth
+
+attrtp_tp - 	log_train_2021-01-27_16-08-05.txt
+		log_test_2021-01-28_13-45-51.txt / log_test_attrtp_tp_single_highest_acc+F1_run.txt
+attrtp_rnn -	log_train_2021-02-19_18-31-51.txt
+		log_test_2021-02-20_18-13-56.txt
+
+attrtp_ta -	data/models/mars/attr_resnet50tp_tp/2021-02-19_18-12-22/
+		log_test_2021-02-20_14-45-50.txt
+
+attrtp_3d - 	data/models/mars/3d/2021-02-19_18-34-03/
+		log_test_2021-02-20_14-38-36.txt 	
+
+attrtp_base	data/models/mars/baseline/2021-02-19_18-37-23/ log_train_2021-02-19_18-37-23.txt
+		log_test_2021-02-20_14-12-44.txt
+
+--predict command:
+python main_video_attr_recog.py --save-dir="data/models/mars/test" --gpu-devices=6 --arch=attr_resnet50tp_baseline --stalestep=10 --eval-step=5 --train-batch=32 --evaluate --eval_model_root="data/models/mars/baseline/2021-02-19_18-37-23/" --predict
+
+
+python main_video_attr_recog.py --save-dir="data/models/mars/test" --gpu-devices=6 --arch=attr_resnet50tp --model_type="ta" --stalestep=10 --eval-step=5 --train-batch=32
