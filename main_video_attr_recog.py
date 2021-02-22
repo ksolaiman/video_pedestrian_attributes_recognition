@@ -18,7 +18,7 @@ from torch.optim import lr_scheduler
 from tqdm import tqdm
 
 import data_manager
-from video_loader import VideoDataset
+from video_loader import VideoDataset, read_image
 import transforms as T
 import models
 
@@ -80,6 +80,7 @@ parser.add_argument('--htri-only', action='store_true', default=False,
 parser.add_argument('--print-freq', type=int, default=80, help="print frequency")
 parser.add_argument('--seed', type=int, default=1, help="manual seed")
 parser.add_argument('--evaluate', default=False, action='store_true', help="evaluation only")
+parser.add_argument('--predict', default=False, action='store_true', help="prediction only")
 parser.add_argument('--colorsampling', default=False, action='store_true', help="color sampling evaluation only")
 parser.add_argument('--eval-step', type=int, default=2,
                     help="run evaluation for every N epochs (set to -1 to test after training)")
@@ -114,10 +115,10 @@ def attr_main():
 
     print("Initializing dataset {}".format(args.dataset))
 
-    dataset = data_manager.init_dataset(name=args.dataset, min_seq_len=args.seq_len, attr=True)
+#    dataset = data_manager.init_dataset(name=args.dataset, min_seq_len=args.seq_len, attr=True)
     
-    args.attr_lens = dataset.attr_lens
-    args.columns = dataset.columns
+    args.attr_lens = [[],[9, 10, 2]]#dataset.attr_lens
+    args.columns = ["upcolor", "downcolor", "gender"]#dataset.columns
     
     print("Initializing model: {}".format(args.arch))
     # if args.arch == "resnet50ta_attr" or args.arch == "resnet50ta_attr_newarch":
@@ -158,46 +159,66 @@ def attr_main():
 
     pin_memory = True if use_gpu else False
     
-    # For SQL mmir, just first_img_path/ random_img_path sampling works
-    # For other mmir, call first_img/ random_img sampling
-#     mmirImgQueryLoader = VideoDataset(dataset.mmir_img_query, seq_len=1, # dataset.mmir_img_query[0:2]
-#                                sample='random_img_path', transform=transform_test, attr=True,
-#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
-
-#     import psycopg2
-#     # set-up a postgres connection
-#     conn = psycopg2.connect(database='ng', user='ngadmin',password='stonebra',
-#                                 host='146.148.89.5', port=5432)
-#     dbcur = conn.cursor()
-#     print("connection successful")
-#     for batch_idx, (pids, camids, attrs, img_path) in enumerate(tqdm(mmirImgQueryLoader)):
-#         print(pids)
-#         images = list()
-#         images.append(img_path)
-#         # just save the img in img_path
-#         sql = dbcur.mogrify("""
-#             INSERT INTO mmir_ground (
-#                 mgid,
-#                 ctype,
-#                 pid,
-#                 camid,
-#                 ubc,
-#                 lbc,
-#                 gender,
-#                 imagepaths 
-#             ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("image", 
-#                                                                       str(pids), 
-#                                                                          str(camids), 
-#                                                                          str(attrs[0]), 
-#                                                                          str(attrs[1]), 
-#                                                                          str(attrs[2]), images)
-#         )
+#     if args.predict:
+#         attr_predict(model, transform_test, use_gpu)
+#         return
     
-#         print(sql)
-#         dbcur.execute(sql)
-#         conn.commit()
+#     # For SQL mmir, just first_img_path/ random_img_path sampling works
+#     # For other mmir, call first_img/ random_img sampling
+#     mmirImgQueryLoader = VideoDataset(dataset.mmir_img_query, seq_len=1, # dataset.mmir_img_query[0:2]
+#                                sample='random_img_path', # sample='random',  #changing to random to get the imgs for running attr. extraction model, does the img_path match with 'random_img_path' sampling -- yap, the samples returned with both sampling matches in postgres and here, so next just get those images and run the attribute ex. models on them
+#                                       transform=transform_test, attr=True,
+#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+    
+#     # The above function basically just tells how we sample dfrom the img list of this specific tracklet (has pid, camid, attrs)
+    
+#     # sampling more from gallery as test and gallery has same person, train has different persons
+#     # during retrieval same person with same features should have higher rank than different person with same features
+#     # 2/3 for image, rest is for video
+#     mmirImgQueryLoader = VideoDataset(
+#                         dataset.mmir_img_gallery,
+#                          seq_len=1, # dataset.mmir_img_query[0:2]
+#                                sample='random_img_path', # sample='random',  
+#                                       transform=transform_test, attr=True,
+#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+#     print(len(dataset.mmir_img_gallery))
+#     print(len(dataset.mmir_video_gallery))
 
-#     print(dataset.mmir_video_query[0]) # if this works, for sdml or other mmir training will just take some part of train for img, some for video
+
+# #     import psycopg2
+# #     # set-up a postgres connection
+# #     conn = psycopg2.connect(database='ng', user='ngadmin',password='stonebra',
+# #                                 host='146.148.89.5', port=5432)
+# #     dbcur = conn.cursor()
+# #     print("connection successful")
+# #     for batch_idx, (pids, camids, attrs, img_path) in enumerate(tqdm(mmirImgQueryLoader)):
+# #         #print(pids)
+# #         images = list()
+# #         images.append(img_path)
+# #         # just save the img in img_path
+# #         sql = dbcur.mogrify("""
+# #             INSERT INTO mmir_ground (
+# #                 mgid,
+# #                 ctype,
+# #                 pid,
+# #                 camid,
+# #                 ubc,
+# #                 lbc,
+# #                 gender,
+# #                 imagepaths 
+# #             ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("image", 
+# #                                                                       str(pids), 
+# #                                                                          str(camids), 
+# #                                                                          str(attrs[0]), 
+# #                                                                          str(attrs[1]), 
+# #                                                                          str(attrs[2]), images)
+# #         )
+    
+# #         # print(sql)
+# #         dbcur.execute(sql)
+# #         conn.commit()
+
+# #     print(dataset.mmir_video_query[0]) # if this works, for sdml or other mmir training will just take some part of train for img, some for video
     
 #     # For SQL mmir, just first_img_path sampling works, as not even using the image_array, using just the attributes
 #     # For other mmir, call random sampling
@@ -207,55 +228,60 @@ def attr_main():
 #                                sample='random_video', transform=transform_test, attr=True,
 #                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
     
-#     for batch_idx, (pids, camids, attrs, img_paths) in enumerate(tqdm(mmirVideoQueryLoader)):
-#         print(pids)
-#         sql = dbcur.mogrify("""
-#             INSERT INTO mmir_ground (
-#                 mgid,
-#                 ctype,
-#                 pid,
-#                 camid,
-#                 ubc,
-#                 lbc,
-#                 gender,
-#                 imagepaths
-#             ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("video", 
-#                                                                       str(pids), 
-#                                                                          str(camids), 
-#                                                                          str(attrs[0]), 
-#                                                                          str(attrs[1]), 
-#                                                                          str(attrs[2]), img_paths)
-#         )
-    
-#         dbcur.execute(sql)
-#         conn.commit()
-        
-#     conn.close()
-    
-    # if i want to add more mmir image, video samples, 
-    # 1. in line 116, pass num_mmir_query_imgs=1000, num_mmir_query_videos=100
-    # 2. just uncomment the SQL query code, the first 1000 & 100 would be same, as seed is set, the later ones will be added in postgres
-
-    trainloader = DataLoader(
-        VideoDataset(dataset.train, seq_len=args.seq_len, sample='random', transform=transform_train, attr=True,
-                     attr_loss=args.attr_loss, attr_lens=args.attr_lens),
-        sampler=RandomIdentitySampler(dataset.train, num_instances=args.num_instances),
-        batch_size=args.train_batch, num_workers=args.workers,
-        pin_memory=pin_memory, drop_last=True,
-    )
-    
-    validloader = VideoDataset(dataset.valid, seq_len=args.seq_len, 
-                               sample='dense', transform=transform_test, attr=True,
-                     attr_loss=args.attr_loss, attr_lens=args.attr_lens)
-
-    #queryloader = VideoDataset(dataset.query + dataset.gallery, seq_len=args.seq_len, sample='single' transform=transform_test, attr=True,
-    queryloader = VideoDataset(dataset.query + dataset.gallery, seq_len=args.seq_len, #args.seq_len, sample='dense'
-                               sample='dense', transform=transform_test, attr=True,
-                     attr_loss=args.attr_loss, attr_lens=args.attr_lens)
-    
-#     queryLoaderMIT = VideoDataset(dataset.query + dataset.gallery, seq_len=1,
-#                                sample='random_img_path', transform=transform_test, attr=True,
+#     mmirVideoQueryLoader = VideoDataset(dataset.mmir_video_gallery, seq_len=6, # 100 * 10 = 1000 frames as image
+#                                sample='random_video', transform=transform_test, attr=True,
 #                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+    
+# #     for batch_idx, (pids, camids, attrs, img_paths) in enumerate(tqdm(mmirVideoQueryLoader)):
+# #         #print(pids)
+# #         sql = dbcur.mogrify("""
+# #             INSERT INTO mmir_ground (
+# #                 mgid,
+# #                 ctype,
+# #                 pid,
+# #                 camid,
+# #                 ubc,
+# #                 lbc,
+# #                 gender,
+# #                 imagepaths
+# #             ) VALUES (DEFAULT, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", ("video", 
+# #                                                                       str(pids), 
+# #                                                                          str(camids), 
+# #                                                                          str(attrs[0]), 
+# #                                                                          str(attrs[1]), 
+# #                                                                          str(attrs[2]), img_paths)
+# #         )
+    
+# #         dbcur.execute(sql)
+# #         conn.commit()
+        
+# #     conn.close()
+    
+#     # if i want to add more mmir image, video samples, 
+#     # 1. in line 116, pass num_mmir_query_imgs=1000, num_mmir_query_videos=100
+#     # 2. just uncomment the SQL query code, the first 1000 & 100 would be same, as seed is set, the later ones will be added in postgres
+#     # hahahah, way surpassed above steps, created new samples from query_id, appended them; then created samples from gallery_id, added them by calling sampler again
+
+#     trainloader = DataLoader(
+#         VideoDataset(dataset.train, seq_len=args.seq_len, sample='random', transform=transform_train, attr=True,
+#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens),
+#         sampler=RandomIdentitySampler(dataset.train, num_instances=args.num_instances),
+#         batch_size=args.train_batch, num_workers=args.workers,
+#         pin_memory=pin_memory, drop_last=True,
+#     )
+    
+#     validloader = VideoDataset(dataset.valid, seq_len=args.seq_len, 
+#                                sample='dense', transform=transform_test, attr=True,
+#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+
+#     #queryloader = VideoDataset(dataset.query + dataset.gallery, seq_len=args.seq_len, sample='single' transform=transform_test, attr=True,
+#     queryloader = VideoDataset(dataset.query + dataset.gallery, seq_len=args.seq_len, #args.seq_len, sample='dense'
+#                                sample='dense', transform=transform_test, attr=True,
+#                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
+    
+# #     queryLoaderMIT = VideoDataset(dataset.query + dataset.gallery, seq_len=1,
+# #                                sample='random_img_path', transform=transform_test, attr=True,
+# #                      attr_loss=args.attr_loss, attr_lens=args.attr_lens)
     
 
     start_epoch = args.start_epoch
@@ -272,7 +298,7 @@ def attr_main():
         criterion = nn.CrossEntropyLoss()
     elif args.attr_loss == "mse":
         criterion = nn.MSELoss()
-        
+    
     if args.colorsampling:
         attr_test_MIT(model, criterion, queryLoaderMIT, use_gpu)
         return
@@ -300,6 +326,9 @@ def attr_main():
                 if k in old_weights:
                     new_weights[k] = old_weights[k]
             model.module.load_state_dict(new_weights)
+            if args.predict:
+                attr_predict(model, transform_test, use_gpu)
+                return
             avr_acc = attr_test(model, criterion, queryloader, use_gpu)
             # break
         # test(model, queryloader, galleryloader, args.pool, use_gpu)
@@ -344,6 +373,81 @@ def attr_main():
     elapsed = str(datetime.timedelta(seconds=elapsed))
     print("Finished. Total elapsed time (h:m:s): {}".format(elapsed))
 
+def attr_predict(model, transform_test, use_gpu):
+    import psycopg2
+    from PIL import Image
+
+    # set-up a postgres connection
+    conn = psycopg2.connect(database='ng', user='ngadmin',password='stonebra',
+                                host='146.148.89.5', port=5432)
+    dbcur = conn.cursor()
+    print("connection successful")
+    try:
+        sql = dbcur.mogrify("""
+        select mgid, ctype, pid, camid, imagepaths from mmir_ground 
+        where ctype='image' or ctype='video'
+        """)
+
+        dbcur.execute(sql)
+        with torch.no_grad():
+            model.eval()
+            rows = dbcur.fetchall()
+            for row in rows:
+                mgid, ctype, pid, camid, img_paths = row
+                imgs = []
+                sz = 0
+                for img_path in img_paths:
+                    img = read_image("/homes/ksolaima/scratch1/yuange250_video_pedestrian_attributes_recognition-master"+img_path[1:])
+
+                    img = transform_test(img)
+                    img = img.unsqueeze(0)
+                    imgs.append(img)
+
+                imgs = torch.cat(imgs, dim=0)
+                imgs = imgs.unsqueeze(0) # to match the group testing of theirs -_-
+                if use_gpu:
+                    imgs = imgs.cuda()
+
+                outputs = model(imgs)
+                # outputs = [torch.mean(out, 0).view(1, -1) for out in outputs] # no need
+                predicted_attrs = []
+                for i in range(len(outputs)):
+                    outs = outputs[i].cpu().numpy()
+                    # print(outs.shape)
+                    predicted_attrs.append(np.argmax(outs, 1)[0]) # [0] because of the unsqueezing of grouping testing
+                print(predicted_attrs)
+                sql = dbcur.mogrify("""
+                            INSERT INTO mmir_predicted (
+                                mgid,
+                                ctype,
+                                pid,
+                                camid,
+                                ubc,
+                                lbc,
+                                gender,
+                                imagepaths 
+                            ) VALUES (%s, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING;""", (str(mgid), ctype, 
+                                                                                      str(pid), 
+                                                                                         str(camid), 
+                                                                                         str(predicted_attrs[0]), 
+                                                                                         str(predicted_attrs[1]), 
+                                                                                         str(predicted_attrs[2]), img_paths)
+                 )
+                dbcur.execute(sql)
+                conn.commit()
+    except (Exception, psycopg2.Error) as error :
+        print (error)
+
+    finally:
+        #closing database connection.
+        if(conn):
+            dbcur.close()
+            conn.close()
+            print("PostgreSQL connection is closed")
+            
+
+        
+    
 def attr_train(model, criterion, optimizer, trainloader, use_gpu):
     model.train()
     losses = AverageMeter()
@@ -382,7 +486,7 @@ def attr_train(model, criterion, optimizer, trainloader, use_gpu):
 def attr_test(model, criterion, testloader, use_gpu):
     columns = args.columns
     # accs = np.array([0 for _ in range(len(args.attr_lens))])
-    accs = np.array([0 for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))])
+    accs = np.array([0.0 for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))])
     num = 0
     y_preds = [[] for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))]
     y_trues = [[] for _ in range(len(args.attr_lens[0]) + len(args.attr_lens[1]))]
